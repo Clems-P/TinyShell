@@ -43,14 +43,14 @@ void simulate_input(const char* str) {
 void test_shell_init() {
     reset_output();
     shell_init();
-    assert(strstr(output_buf, "--- Mini Shell Initialise ---") != NULL);
+    assert(strstr(output_buf, "--- Mini Shell Initialized ---") != NULL);
     assert(strstr(output_buf, "> ") != NULL);
 }
 
 void test_help_command() {
     reset_output();
     simulate_input("help\n");
-    assert(strstr(output_buf, "Liste des commandes disponibles:") != NULL);
+    assert(strstr(output_buf, "Available commands:") != NULL);
     assert(strstr(output_buf, "help") != NULL);
     assert(strstr(output_buf, "led") != NULL);
     assert(strstr(output_buf, "status") != NULL);
@@ -59,20 +59,20 @@ void test_help_command() {
 void test_status_command() {
     reset_output();
     simulate_input("status\n");
-    assert(strstr(output_buf, "Statut du systeme: OK") != NULL); // reverted to non-accented
-    assert(strstr(output_buf, "Temperature CPU: 42 deg C") != NULL);
+    assert(strstr(output_buf, "System status: OK") != NULL);
+    assert(strstr(output_buf, "CPU temperature: 42 deg C") != NULL);
 }
 
 void test_led_command_on() {
     reset_output();
     simulate_input("led 1 on\n");
-    assert(strstr(output_buf, "Action: Allumer LED 1 a l'etat 1") != NULL);
+    assert(strstr(output_buf, "Action: Set LED 1 to state 1") != NULL);
 }
 
 void test_led_command_off() {
     reset_output();
     simulate_input("led 2 off\n");
-    assert(strstr(output_buf, "Action: Allumer LED 2 a l'etat 0") != NULL);
+    assert(strstr(output_buf, "Action: Set LED 2 to state 0") != NULL);
 }
 
 void test_led_command_usage() {
@@ -84,40 +84,31 @@ void test_led_command_usage() {
 void test_led_command_error() {
     reset_output();
     simulate_input("led 1 blink\n");
-    assert(strstr(output_buf, "Erreur: l'etat doit etre 'on' ou 'off'") != NULL);
+    assert(strstr(output_buf, "Error: state must be 'on' or 'off'") != NULL);
 }
 
 void test_unknown_command() {
     reset_output();
     simulate_input("foobar\n");
-    assert(strstr(output_buf, "Commande inconnue: foobar") != NULL);
+    assert(strstr(output_buf, "Unknown command: foobar") != NULL);
 }
 
 void test_backspace() {
     reset_output();
     simulate_input("statuz\b\bs\n"); // Should become "status\n")
-    // Print output for debugging if assertion fails
-    if (strstr(output_buf, "Statut du systeme: OK") == NULL &&
-        strstr(output_buf, "Statut du système: OK") == NULL) {
+    if (strstr(output_buf, "System status: OK") == NULL) {
         printf("DEBUG: output_buf = [%s]\n", output_buf);
     }
-    // Accept both accented and non-accented outputs for robustness
-    assert(
-        strstr(output_buf, "Statut du systeme: OK") != NULL ||
-        strstr(output_buf, "Statut du système: OK") != NULL
-    );
+    assert(strstr(output_buf, "System status: OK") != NULL);
 }
 
 void test_history_up_arrow() {
     reset_output();
     simulate_input("status\n");
     simulate_input("help\n");
-    // Simulate up arrow: ESC [ A
     simulate_input("\x1B[A");
-    // After up arrow, line_buffer should contain "help"
-    // Simulate Enter to execute it
     simulate_input("\n");
-    assert(strstr(output_buf, "Liste des commandes disponibles:") != NULL);
+    assert(strstr(output_buf, "Available commands:") != NULL);
 }
 
 int main() {
