@@ -1,5 +1,5 @@
 #include <stdio.h> // Pour getchar() dans cet exemple de simulation
-#include "src/tinyshell.h"
+#include "tinyshell.h"
 
 // --- Implémentation des fonctions d'interface UART (à adapter) ---
 // Pour ce test sur PC, on utilise printf. Sur un MCU, utilisez votre driver UART.

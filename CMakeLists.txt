@@ -19,4 +19,12 @@ if(TINYSHELL_BUILD_MAIN)
     add_executable(tinyshell_main main.c)
     target_link_libraries(tinyshell_main PRIVATE tinyshell)
     target_include_directories(tinyshell_main PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+
+    enable_testing()
+    add_executable(test_tinyshell tests/test_tinyshell.c)
+    target_link_libraries(test_tinyshell PRIVATE tinyshell)
+    target_include_directories(test_tinyshell PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    add_test(NAME tinyshellTest COMMAND test_tinyshell)
 endif()
+
