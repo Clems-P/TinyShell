@@ -1,17 +1,17 @@
-// Fichier d'implémentation : mini_shell.c
+// Implementation file: mini_shell.c
 
 #include "tinyshell.h"
-#include <string.h> // Pour strcmp, strcpy, strtok
-#include <stdlib.h> // Pour atoi
-#include <stdio.h>  // Pour snprintf (optionnel, pour des commandes complexes)
+#include <string.h> // For strcmp, strcpy, strtok
+#include <stdlib.h> // For atoi
+#include <stdio.h>  // For snprintf (optional, for complex commands)
 
-// --- Configuration du Shell ---
+// --- Shell Configuration ---
 #define SHELL_PROMPT        "> "
-#define SHELL_BUFFER_SIZE   64  // Taille max d'une commande
-#define SHELL_HISTORY_SIZE  10  // Nombre de commandes dans l'historique
-#define SHELL_MAX_ARGS      8   // Nombre max d'arguments (commande incluse)
+#define SHELL_BUFFER_SIZE   64  // Max command size
+#define SHELL_HISTORY_SIZE  10  // Number of commands in history
+#define SHELL_MAX_ARGS      8   // Max number of arguments (including command)
 
-// --- Tampons statiques ---
+// --- Static buffers ---
 static char line_buffer[SHELL_BUFFER_SIZE];
 static int  buffer_index = 0;
 
@@ -19,7 +19,7 @@ static char history[SHELL_HISTORY_SIZE][SHELL_BUFFER_SIZE];
 static int  history_write_index = 0;
 static int  history_read_index = 0;
 
-// Pour la gestion des séquences d'échappement (flèches)
+// For escape sequence handling (arrows)
 typedef enum {
     STATE_NORMAL,
     STATE_ESC,
@@ -28,62 +28,62 @@ typedef enum {
 static escape_state_t escape_state = STATE_NORMAL;
 
 
-// --- Déclaration des Callbacks de commandes ---
-// Chaque fonction de commande doit avoir cette signature.
+// --- Command callback declarations ---
+// Each command function must have this signature.
 typedef void (*shell_command_callback_t)(int argc, char *argv[]);
 
-// Exemples de fonctions de commande
+// Example command functions
 static void cmd_help(int argc, char *argv[]);
 static void cmd_led(int argc, char *argv[]);
 static void cmd_status(int argc, char *argv[]);
 
-// --- Base de données des commandes (le point central) ---
-// C'est ici que vous associez un mot-clé à une fonction.
+// --- Command database (the central point) ---
+// Here you associate a keyword with a function.
 typedef struct {
     const char* command;
     shell_command_callback_t callback;
     const char* help;
 } shell_command_t;
 
-// Liste statique et constante des commandes disponibles.
-// Mettez-la en 'const' pour la stocker en mémoire Flash sur le MCU.
+// Static and constant list of available commands.
+// Use 'const' to store it in Flash memory on the MCU.
 static const shell_command_t commands[] = {
-    {"help",   cmd_help,   "Affiche cette aide"},
-    {"led",    cmd_led,    "Controle une LED: led <num> <on|off>"},
-    {"status", cmd_status, "Affiche le statut du systeme"},
-    // Ajoutez vos nouvelles commandes ici
-    {NULL, NULL, NULL} // Marqueur de fin de liste
+    {"help",   cmd_help,   "Display this help"},
+    {"led",    cmd_led,    "Control an LED: led <num> <on|off>"},
+    {"status", cmd_status, "Display system status"},
+    // Add your new commands here
+    {NULL, NULL, NULL} // End of list marker
 };
 
 
-// --- Fonctions internes du Shell ---
+// --- Internal Shell functions ---
 
 /**
- * @brief Efface la ligne actuelle sur le terminal et la redessine.
+ * @brief Clears the current line on the terminal and redraws it.
  */
 static void shell_redraw_line() {
-    // Efface la ligne: \r (retour chariot) + une série d'espaces + \r
+    // Clear the line: \r (carriage return) + a series of spaces + \r
     char temp_buf[SHELL_BUFFER_SIZE + sizeof(SHELL_PROMPT) + 1] = {0};
     memset(temp_buf, ' ', sizeof(temp_buf) - 1);
     temp_buf[sizeof(SHELL_PROMPT) + buffer_index] = '\0';
     shell_puts("\r");
     shell_puts(temp_buf);
 
-    // Redessine le prompt et le contenu du buffer
+    // Redraw the prompt and buffer content
     shell_puts("\r" SHELL_PROMPT);
     shell_puts(line_buffer);
 }
 
 /**
- * @brief Exécute la commande présente dans line_buffer.
+ * @brief Executes the command present in line_buffer.
  */
 static void shell_execute() {
     if (buffer_index == 0) {
-        return; // Ligne vide
+        return; // Empty line
     }
 
-    // Ajout à l'historique
-    // On ne stocke pas deux fois de suite la même commande
+    // Add to history
+    // Do not store the same command twice in a row
     int prev_index = (history_write_index + SHELL_HISTORY_SIZE - 1) % SHELL_HISTORY_SIZE;
     if (strcmp(history[prev_index], line_buffer) != 0) {
         strcpy(history[history_write_index], line_buffer);
@@ -91,11 +91,11 @@ static void shell_execute() {
     }
     history_read_index = history_write_index;
 
-    // Parsing de la commande (argc, argv)
+    // Command parsing (argc, argv)
     char* argv[SHELL_MAX_ARGS];
     int argc = 0;
     
-    // Utilise strtok pour découper la ligne. Attention: strtok modifie le buffer.
+    // Use strtok to split the line. Warning: strtok modifies the buffer.
     char* token = strtok(line_buffer, " ");
     while (token != NULL && argc < SHELL_MAX_ARGS) {
         argv[argc++] = token;
@@ -106,39 +106,39 @@ static void shell_execute() {
         return;
     }
 
-    // Recherche et exécution de la commande
+    // Search and execute the command
     for (int i = 0; commands[i].command != NULL; i++) {
         if (strcmp(argv[0], commands[i].command) == 0) {
-            commands[i].callback(argc, argv); // Commande trouvée, on l'appelle
+            commands[i].callback(argc, argv); // Command found, call it
             return;
         }
     }
 
-    // Si on arrive ici, la commande est inconnue
-    shell_puts("Commande inconnue: ");
+    // If we reach here, the command is unknown
+    shell_puts("Unknown command: ");
     shell_puts(argv[0]);
     shell_puts("\r\n");
 }
 
 
-// --- Implémentation des fonctions publiques ---
+// --- Public function implementations ---
 
 void shell_init(void) {
-    // Nettoie les buffers au cas où
+    // Clear buffers just in case
     memset(line_buffer, 0, sizeof(line_buffer));
     buffer_index = 0;
     memset(history, 0, sizeof(history));
     history_write_index = 0;
     history_read_index = 0;
 
-    shell_puts("\r\n--- Mini Shell Initialise ---\r\n");
+    shell_puts("\r\n--- Mini Shell Initialized ---\r\n");
     shell_puts(SHELL_PROMPT);
 }
 
 void shell_process_char(char c) {
-    // Gestion des séquences d'échappement pour les flèches
+    // Handle escape sequences for arrows
     if (escape_state == STATE_NORMAL) {
-        if (c == '\x1B') { // Début d'une séquence (ESC)
+        if (c == '\x1B') { // Start of a sequence (ESC)
             escape_state = STATE_ESC;
             return;
         }
@@ -146,9 +146,9 @@ void shell_process_char(char c) {
         escape_state = (c == '[') ? STATE_ESC_BRACKET : STATE_NORMAL;
         return;
     } else if (escape_state == STATE_ESC_BRACKET) {
-        if (c == 'A') { // Flèche HAUT
+        if (c == 'A') { // UP arrow
             history_read_index = (history_read_index + SHELL_HISTORY_SIZE - 1) % SHELL_HISTORY_SIZE;
-            // Si on tombe sur une entrée vide, on s'arrête
+            // If we hit an empty entry, stop
             if(history[history_read_index][0] == '\0') {
                  history_read_index = (history_read_index + 1) % SHELL_HISTORY_SIZE;
                  escape_state = STATE_NORMAL;
@@ -158,47 +158,47 @@ void shell_process_char(char c) {
             buffer_index = strlen(line_buffer);
             shell_redraw_line();
         }
-        // Ignorer les autres flèches (B, C, D) pour la simplicité
+        // Ignore other arrows (B, C, D) for simplicity
         escape_state = STATE_NORMAL;
         return;
     }
 
-    // Traitement des caractères normaux
+    // Normal character processing
     switch (c) {
-        case '\r': // Entrée
+        case '\r': // Enter
         case '\n':
             shell_puts("\r\n");
             shell_execute();
-            // Réinitialise pour la prochaine commande
+            // Reset for next command
             memset(line_buffer, 0, sizeof(line_buffer));
             buffer_index = 0;
             shell_puts(SHELL_PROMPT);
             break;
 
         case '\b': // Backspace
-        case 127:  // ASCII DEL (souvent envoyé par backspace)
+        case 127:  // ASCII DEL (often sent by backspace)
             if (buffer_index > 0) {
                 buffer_index--;
                 line_buffer[buffer_index] = '\0';
-                shell_puts("\b \b"); // Efface le caractère sur le terminal
+                shell_puts("\b \b"); // Erase character on terminal
             }
             break;
 
-        default: // Caractère standard
+        default: // Standard character
             if (buffer_index < (SHELL_BUFFER_SIZE - 1) && c >= 32 && c <= 126) {
                 line_buffer[buffer_index++] = c;
                 line_buffer[buffer_index] = '\0';
-                shell_putchar(c); // Echo du caractère
+                shell_putchar(c); // Echo character
             }
             break;
     }
 }
 
 
-// --- Implémentation des callbacks ---
+// --- Command callback implementations ---
 
 static void cmd_help(int argc, char *argv[]) {
-    shell_puts("Liste des commandes disponibles:\r\n");
+    shell_puts("Available commands:\r\n");
     for (int i = 0; commands[i].command != NULL; i++) {
         shell_puts("  ");
         shell_puts(commands[i].command);
@@ -222,19 +222,19 @@ static void cmd_led(int argc, char *argv[]) {
     } else if (strcmp(argv[2], "off") == 0) {
         state = 0;
     } else {
-        shell_puts("Erreur: l'etat doit etre 'on' ou 'off'\r\n");
+        shell_puts("Error: state must be 'on' or 'off'\r\n");
         return;
     }
 
     char temp_buf[40];
-    snprintf(temp_buf, sizeof(temp_buf), "Action: Allumer LED %d a l'etat %d\r\n", led_num, state);
+    snprintf(temp_buf, sizeof(temp_buf), "Action: Set LED %d to state %d\r\n", led_num, state);
     shell_puts(temp_buf);
     
-    // ICI: Appelez votre fonction hardware, par ex: BSP_LED_Set(led_num, state);
+    // HERE: Call your hardware function, e.g.: BSP_LED_Set(led_num, state);
 }
 
 static void cmd_status(int argc, char *argv[]) {
-    shell_puts("Statut du systeme: OK\r\n");
-    shell_puts("Temperature CPU: 42 deg C\r\n");
-    // ICI: Appelez vos fonctions pour récupérer les vraies valeurs.
+    shell_puts("System status: OK\r\n");
+    shell_puts("CPU temperature: 42 deg C\r\n");
+    // HERE: Call your functions to get real values.
 }
